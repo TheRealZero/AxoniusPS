@@ -25,6 +25,4 @@ jobs:
       - name: test PSCriptRoot
         shell: powershell
         run: |
-          Write-Host $PWD
-          Write-Host $PSScriptRoot
-          Get-ChildItem -Path $PSScriptRoot -Recurse
+          Get-ChildItem -Recurse
