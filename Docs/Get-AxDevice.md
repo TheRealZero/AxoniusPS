@@ -1,10 +1,3 @@
----
-external help file: AxoniusPS-help.xml
-Module Name: AxoniusPS
-online version:
-schema: 2.0.0
----
-
 # Get-AxDevice
 
 ## SYNOPSIS

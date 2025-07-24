@@ -1,24 +1,24 @@
-# Get-AxQuery
+# Get-AXUserAllInfo
 
 ## SYNOPSIS
-Get Axonius Query by ID
+Gets all available fields from all available adapters for a single user.
 
 ## SYNTAX
 
 ```
-Get-AxQuery [[-AxoniusURL] <String>] [[-AXKey] <String>] [[-AXSecret] <String>] [-QueryId] <String[]>
+Get-AXUserAllInfo [-AxoniusURL <String>] [-AXKey <String>] [-AXSecret <String>] [-InternalAxonId] <String>
  [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-Get detailed information about a specific Axonius query using its ID.
+Gets all available fields from all available adapters for a single user.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
 ```
-Get-AXQuery -QueryId 5687ef494b9e2df4ce456279
-This example will get the details of the query with the ID 5687ef494b9e2df4ce456279.
+Get-AXUserAllInfo -InternalAxonId "1234567890abcdef1234567890abcdef"
+Retrieves all available fields from all adapters for the specified user.
 ```
 
 ## PARAMETERS
@@ -33,7 +33,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 1
+Position: Named
 Default value: $env:AX_URL
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -49,7 +49,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 2
+Position: Named
 Default value: $env:AX_KEY
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -65,22 +65,22 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 3
+Position: Named
 Default value: $env:AX_SECRET
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -QueryId
-This is the ID of the saved query you would like to get details about.
+### -InternalAxonId
+The internal Axon ID of the device to query.
 
 ```yaml
-Type: String[]
+Type: String
 Parameter Sets: (All)
 Aliases:
 
 Required: True
-Position: 4
+Position: 1
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False

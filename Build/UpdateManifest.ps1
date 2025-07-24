@@ -1,5 +1,5 @@
 param(
-    [string]$manifestPath = $(Join-Path -Path $env:GitRepos -ChildPath 'AxoniusPS\AxoniusPS.psd1')
+    [string]$manifestPath = $(Join-Path -Path $env:GitRepos -ChildPath 'TRZ\AxoniusPS\AxoniusPS.psd1')
 )
 
     If (Test-Path -Path $manifestPath ) {
@@ -46,5 +46,3 @@ Catch{
     Rename-Item -Path "$manifestFolder\$moduleName.psd1.bak" -NewName "$moduleName.psd1"
     Write-Warning -Message "Error updating module manifest. Restored backup manifest."
 }
-
-#Publish-Module -Repository 3MAutomation -Path "$manifestFolder\BuildOutput\"

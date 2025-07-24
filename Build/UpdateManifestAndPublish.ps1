@@ -1,5 +1,6 @@
 param(
-    [string]$manifestPath = $(Join-Path -Path $env:GitRepos -ChildPath 'AxoniusPS\AxoniusPS.psd1')
+    [string]$ManifestPath = $(Join-Path -Path $env:GitRepos -ChildPath 'AxoniusPS\AxoniusPS.psd1'),
+    [string]$PublishRepository
 )
 
     If (Test-Path -Path $manifestPath ) {
@@ -48,4 +49,4 @@ Catch{
 
 
 
-Publish-Module -Repository 3MAutomation -Path "$manifestFolder\$moduleName\BuildOutput\"
+Publish-Module -Repository $PublishRepository -Path "$manifestFolder\$moduleName\BuildOutput\"

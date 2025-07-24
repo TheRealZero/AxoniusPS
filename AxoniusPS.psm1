@@ -6,6 +6,12 @@ Function Find-AxDeviceId {
     Find-AxDeviceId is a function to find a device by any of it's known IDs. It will search the specific_data.data.id property of the device object for the ID you provide.
     .PARAMETER Id
     The ID of the device you want to find. This can be any of the known IDs for the device.
+    .PARAMETER AxoniusURL
+        The URL of the Axonius instance. Default is taken from the AX_URL environment variable.
+    .PARAMETER AXKey
+        The API key for Axonius. Default is taken from the AX_KEY environment variable.
+    .PARAMETER AXSecret
+        The API secret for Axonius. Default is taken from the AX_SECRET environment variable.
     .EXAMPLE
     Find-AxDeviceId -Id "1234567890"
     This will find the device with an ID of 1234567890.
@@ -14,11 +20,28 @@ Function Find-AxDeviceId {
     This will find the device with an ID of Desktop-12346.
     #>
     param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory, Position = 0)]
+        [ValidateNotNullOrEmpty()]
         [string]$Id
     )
 
     $filter = '("specific_data.data.id" == regex("{0}", "i"))' -f $Id
-    Get-AxDevice -Filter $filter
+    $outParams = @{
+        AxoniusURL = $AxoniusURL
+        AXKey = $AXKey
+        AXSecret = $AXSecret
+        Filter = $filter
+    }
+    Get-AxDevice @outParams
 }
 Function Get-AXAdapterIdConversion{
     <#
@@ -32,11 +55,27 @@ Function Get-AXAdapterIdConversion{
     This is the Id type of the value you know.
     .PARAMETER ToIdType
     This is the Id type of the value you don't know, and want to convert your known Id into.
+    .PARAMETER AxoniusURL
+        The URL of the Axonius instance. Default is taken from the AX_URL environment variable.
+    .PARAMETER AXKey
+        The API key for Axonius. Default is taken from the AX_KEY environment variable.
+    .PARAMETER AXSecret
+        The API secret for Axonius. Default is taken from the AX_SECRET environment variable.
     .EXAMPLE
     Get-AXAdapterIdConversion -FromIdValue "d619273b-f124-4b21-acf1-9156771a5f2e" -FromIdType "adapters_data.azure_ad_adapter.intune_id" -ToIdType "internal_axon_id"
     This example converts the Intune device id "d619273b-f124-4b21-acf1-9156771a5f2e" to the internal axonius id.
     #>
     param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory, Position = 0)]
         [string]$FromIdValue,
         [ValidateSet(   "internal_axon_id",
                         "specific_data.data.hostname",
@@ -55,7 +94,8 @@ Function Get-AXAdapterIdConversion{
                         "adapters_data.epo_adapter.epo_id",
                         "adapters_data.hp_device_manager_adapter.id",
                         "adapters_data.sccm_adapter.id")]
-        [string]$FromIdType,     
+        [string]$FromIdType,
+        [Parameter(Mandatory, Position = 1)]
         [ValidateSet(   "internal_axon_id",
                         "specific_data.data.hostname",
                         "specific_data.data.owner",
@@ -78,8 +118,15 @@ Function Get-AXAdapterIdConversion{
 
     $filter = '("{0}" == "{1}")' -f $FromIdType, $FromIdValue
     $fields = @($FromIdType, $ToIdType)
-    $out = Get-AxDevice -Filter $filter -Fields $fields | Select-Object -ExpandProperty $ToIdType
-    $out
+    $outParams = @{
+        AxoniusURL = $AxoniusURL
+        AXKey = $AXKey
+        AXSecret = $AXSecret
+        Filter = $filter
+        Fields = $fields
+    }
+    $out = Get-AxDevice @outParams | Select-Object -ExpandProperty $ToIdType
+    Write-Output $out
 
 
 
@@ -148,13 +195,16 @@ Function Get-AxDevice {
         Try {
             Write-Verbose "Getting query object for $QueryId"
             $queryObjParams = @{
-                Uri     = "$($AxoniusURL)/api/queries/specific/$QueryId"
-                Method  = "GET"
-                Headers = @{
+                Uri        = "$($AxoniusURL)/api/queries/specific/$QueryId"
+                Method     = "GET"
+                Headers    = @{
                     "Content-Type" = "application/vnd.api+json"
                     "api-key"      = $AXKey
                     "api-secret"   = $AXSecret
                 }
+                AxoniusURL = $AxoniusURL
+                AXKey      = $AXKey
+                AXSecret   = $AXSecret
             }
 
             $queryObj = Invoke-RestMethod @queryObjParams
@@ -190,8 +240,8 @@ Function Get-AxDevice {
 
         "SavedQuery" {
             Write-Verbose "Using saved query $QueryId"
-            $body.data.attributes.saved_query_id    = $QueryId
-            $body.data.attributes.filter            = $queryObjFilter
+            $body.data.attributes.saved_query_id = $QueryId
+            $body.data.attributes.filter = $queryObjFilter
             If ( -Not $PSBoundParameters.ContainsKey("Fields") ) {
                 Write-Verbose "Using query object fields"
                 $body.data.attributes.fields.devices = $queryObjFields
@@ -207,14 +257,61 @@ Function Get-AxDevice {
     $body = $body | ConvertTo-Json -Depth 10
 
 
-
-    $deviceResponse = Invoke-RestMethod -Uri "$($AxoniusURL)/api/devices" -Method POST -headers @{
-        "api-key"      = $AXKey
-        "api-secret"   = $AXSecret
-        "Content-Type" = "application/vnd.api+json"
-    } -Body $body
+    $deviceResponseParams = @{
+        Uri        = "$($AxoniusURL)/api/devices"
+        Method     = "POST"
+        Headers    = @{
+            "Content-Type" = "application/vnd.api+json"
+            "api-key"      = $AXKey
+            "api-secret"   = $AXSecret
+        }
+        Body       = $body
+        AxoniusURL = $AxoniusURL
+        AXKey      = $AXKey
+        AXSecret   = $AXSecret
+    }
+    $deviceResponse = Invoke-RestMethod @deviceResponseParams
 
     Write-Output $deviceResponse.data.attributes
+}
+Function Get-AXDeviceAllInfo {
+    <#
+    .SYNOPSIS
+    Gets all available fields from all available adapters for a singe device.
+    .DESCRIPTION
+    Gets all available fields from all available adapters for a single device.
+    .PARAMETER InternalAxonId
+    The internal Axon ID of the device to query.
+    .PARAMETER AxoniusURL
+        The URL of the Axonius instance. Default is taken from the AX_URL environment variable.
+    .PARAMETER AXKey
+        The API key for Axonius. Default is taken from the AX_KEY environment variable.
+    .PARAMETER AXSecret
+        The API secret for Axonius. Default is taken from the AX_SECRET environment variable.
+    .EXAMPLE
+    Get-AXDeviceAllInfo -InternalAxonId "1234567890abcdef1234567890abcdef"
+    Retrieves all available fields from all adapters for the specified device.
+    
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory, Position = 0)]
+        [string]$InternalAxonId
+    )
+    $requestParams = @{
+        AxoniusURL = "$($AxoniusURL)/api/devices/$($InternalAxonId)?return_empty_details=false&return_complex_fields_data=false" 
+        AXKey      = $AXKey
+        AXSecret   = $AXSecret
+    }
+    Invoke-AXAPIRequest $requestParams | ConvertFrom-Json -AsHashtable | Select-Object -expand data | Select-Object -expand attributes | Select-Object -expand adapters
 }
 Function Get-AxDeviceCount {
     <#
@@ -406,6 +503,164 @@ Function Get-AxQuery {
 
         }
     }
+}
+Function Get-AxUser {
+    <#
+    .SYNOPSIS
+    Get-AxUser retrieves user information from the Axonius API.
+    .DESCRIPTION
+    Get-AxUser retrieves user information from the Axonius API.
+    .PARAMETER AxoniusURL
+    The URL of the Axonius instance.
+    .PARAMETER AXKey
+    The API key for the Axonius instance.
+    .PARAMETER AXSecret
+    The API secret for the Axonius instance.
+    .PARAMETER Filter
+    The filter to apply to the query.
+    .PARAMETER QueryId
+    The ID of the saved query to use.
+    .PARAMETER PageOffset
+    The page offset to start the query.
+    .PARAMETER PageLimit
+    The page limit for the query.
+    .PARAMETER PageSize
+    The page size for the query.
+    .PARAMETER Fields
+    The fields to return in the query.
+    .EXAMPLE
+    Get-AxUser -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+"
+    This example retrieves all users from the Axonius instance.
+
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory = $false, ParameterSetName = "Filter")]
+        [string]$Filter = "",
+        [Parameter(Mandatory = $true, ParameterSetName = "SavedQuery")]
+        [string]$QueryId,
+        [Parameter(Mandatory = $false)]
+        [int]$PageOffset = 0,
+        [Parameter(Mandatory = $false)]
+        [int]$PageLimit,
+        [Parameter(Mandatory = $false)]
+        [string[]]$Fields = @("adapters","specific_data.data.image","specific_data.data.username","specific_data.data.domain","specific_data.data.is_admin","specific_data.data.last_seen","labels")    )
+    Write-Verbose $PScmdlet.ParameterSetName
+    If ($PSBoundParameters.ContainsKey("QueryId")) {
+
+        Try {
+            Write-Verbose "Getting query object for $QueryId"
+            $queryObjParams = @{
+                Uri     = "$($AxoniusURL)/api/queries/specific/$QueryId"
+                Method  = "GET"
+                Headers = @{
+                    "Content-Type" = "application/vnd.api+json"
+                    "api-key"      = $AXKey
+                    "api-secret"   = $AXSecret
+                }
+            }
+
+            $queryObj = Invoke-RestMethod @queryObjParams
+            $queryObjFields = $queryObj.data.attributes.view.fields
+            $queryObjFilter = $queryObj.data.attributes.view.query.filter
+        } 
+        Catch {
+            Write-Error "Query ID not found."
+            Break
+        }
+    }
+
+    $body = @{
+        "meta" = $null
+        "data" = @{
+            "type"       = "entity_request_schema"
+            "attributes" = @{
+                "page"               = @{
+                    "offset" = $PageOffset
+                    "limit"  = $PageLimit
+                }
+                "fields"             = @{
+                    "users" = $Fields
+                }
+                "get_metadata"       = $false
+                "include_details"    = $false
+                "null_for_non_exist" = $true
+                "use_cache_entry"    = $true
+            }
+        }
+    }    
+    switch ($PsCmdlet.ParameterSetName) {
+
+        "SavedQuery" {
+            Write-Verbose "Using saved query $QueryId"
+            $body.data.attributes.saved_query_id = $QueryId
+            $body.data.attributes.filter = $queryObjFilter
+            If ( -Not $PSBoundParameters.ContainsKey("Fields") ) {
+                Write-Verbose "Using query object fields"
+                $body.data.attributes.fields.users = $queryObjFields
+            }
+        }
+        "Filter" {
+            Write-Verbose "Using filter '$Filter'"
+            $body.data.attributes.filter = $Filter
+        }
+        
+    } 
+
+    $body = $body | ConvertTo-Json -Depth 10
+
+
+
+    $userResponse = Invoke-RestMethod -Uri "$($AxoniusURL)/api/users" -Method POST -headers @{
+        "api-key"      = $AXKey
+        "api-secret"   = $AXSecret
+        "Content-Type" = "application/vnd.api+json"
+    } -Body $body
+
+    Write-Output $userResponse.data.attributes
+}
+Function Get-AXUserAllInfo {
+    <#
+    .SYNOPSIS
+    Gets all available fields from all available adapters for a single user.
+    .DESCRIPTION
+    Gets all available fields from all available adapters for a single user.
+    .PARAMETER InternalAxonId
+    The internal Axon ID of the device to query.
+    .PARAMETER AxoniusURL
+        The URL of the Axonius instance. Default is taken from the AX_URL environment variable.
+    .PARAMETER AXKey
+        The API key for Axonius. Default is taken from the AX_KEY environment variable.
+    .PARAMETER AXSecret
+        The API secret for Axonius. Default is taken from the AX_SECRET environment variable.
+    .EXAMPLE
+    Get-AXUserAllInfo -InternalAxonId "1234567890abcdef1234567890abcdef"
+    Retrieves all available fields from all adapters for the specified user.
+
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory, Position = 0)]
+        [string]$InternalAxonId
+    )
+
+    Invoke-AXAPIRequest -Uri "$($AxoniusURL)/api/users/$($InternalAxonId)?return_empty_details=false&return_complex_fields_data=false" | convertfrom-json -AsHashtable | Select-Object -expand data | Select-Object -expand attributes | Select-Object -expand adapters
 }
 Function Invoke-AXAPIRequest {
     <#

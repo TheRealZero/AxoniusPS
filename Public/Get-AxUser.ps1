@@ -1,9 +1,9 @@
-Function Get-AxDevice {
+Function Get-AxUser {
     <#
     .SYNOPSIS
-    Get-AxDevice retrieves device information from the Axonius API.
+    Get-AxUser retrieves user information from the Axonius API.
     .DESCRIPTION
-    Get-AxDevice retrieves device information from the Axonius API.
+    Get-AxUser retrieves user information from the Axonius API.
     .PARAMETER AxoniusURL
     The URL of the Axonius instance.
     .PARAMETER AXKey
@@ -23,17 +23,9 @@ Function Get-AxDevice {
     .PARAMETER Fields
     The fields to return in the query.
     .EXAMPLE
-    Get-AxDevice -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+"
-    This example retrieves all devices from the Axonius instance.
-    .EXAMPLE
-    Get-AxDevice -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+" -Filter "specific_data.data.os.type == 'Windows'"
-    This example retrieves all Windows devices from the Axonius instance.
-    .EXAMPLE
-    Get-AxDevice -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+" -PageLimit 10
-    This example retrieves the first 10 devices from the Axonius instance.
-    .EXAMPLE
-    Get-AxDevice -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+" -Fields @("specific_data.data.name","specific_data.data.hostname")
-    This example retrieves the name and hostname of all devices from the Axonius instance.
+    Get-AxUser -AxoniusURL "https://{companyURL}.on.axonius.com" -AXKey "key" -AXSecret "53cr3+"
+    This example retrieves all users from the Axonius instance.
+
     #>
     param(
         [Parameter(Mandatory = $false)]
@@ -54,24 +46,20 @@ Function Get-AxDevice {
         [Parameter(Mandatory = $false)]
         [int]$PageLimit,
         [Parameter(Mandatory = $false)]
-        [string[]]$Fields = @("adapters", "specific_data.data.name", "specific_data.data.hostname", "specific_data.data.last_seen", "specific_data.data.network_interfaces.mac", "specific_data.data.network_interfaces.ips", "specific_data.data.os.type", "labels")
-    )
+        [string[]]$Fields = @("adapters","specific_data.data.image","specific_data.data.username","specific_data.data.domain","specific_data.data.is_admin","specific_data.data.last_seen","labels")    )
     Write-Verbose $PScmdlet.ParameterSetName
     If ($PSBoundParameters.ContainsKey("QueryId")) {
 
         Try {
             Write-Verbose "Getting query object for $QueryId"
             $queryObjParams = @{
-                Uri        = "$($AxoniusURL)/api/queries/specific/$QueryId"
-                Method     = "GET"
-                Headers    = @{
+                Uri     = "$($AxoniusURL)/api/queries/specific/$QueryId"
+                Method  = "GET"
+                Headers = @{
                     "Content-Type" = "application/vnd.api+json"
                     "api-key"      = $AXKey
                     "api-secret"   = $AXSecret
                 }
-                AxoniusURL = $AxoniusURL
-                AXKey      = $AXKey
-                AXSecret   = $AXSecret
             }
 
             $queryObj = Invoke-RestMethod @queryObjParams
@@ -94,7 +82,7 @@ Function Get-AxDevice {
                     "limit"  = $PageLimit
                 }
                 "fields"             = @{
-                    "devices" = $Fields
+                    "users" = $Fields
                 }
                 "get_metadata"       = $false
                 "include_details"    = $false
@@ -111,7 +99,7 @@ Function Get-AxDevice {
             $body.data.attributes.filter = $queryObjFilter
             If ( -Not $PSBoundParameters.ContainsKey("Fields") ) {
                 Write-Verbose "Using query object fields"
-                $body.data.attributes.fields.devices = $queryObjFields
+                $body.data.attributes.fields.users = $queryObjFields
             }
         }
         "Filter" {
@@ -124,20 +112,12 @@ Function Get-AxDevice {
     $body = $body | ConvertTo-Json -Depth 10
 
 
-    $deviceResponseParams = @{
-        Uri        = "$($AxoniusURL)/api/devices"
-        Method     = "POST"
-        Headers    = @{
-            "Content-Type" = "application/vnd.api+json"
-            "api-key"      = $AXKey
-            "api-secret"   = $AXSecret
-        }
-        Body       = $body
-        AxoniusURL = $AxoniusURL
-        AXKey      = $AXKey
-        AXSecret   = $AXSecret
-    }
-    $deviceResponse = Invoke-RestMethod @deviceResponseParams
 
-    Write-Output $deviceResponse.data.attributes
+    $userResponse = Invoke-RestMethod -Uri "$($AxoniusURL)/api/users" -Method POST -headers @{
+        "api-key"      = $AXKey
+        "api-secret"   = $AXSecret
+        "Content-Type" = "application/vnd.api+json"
+    } -Body $body
+
+    Write-Output $userResponse.data.attributes
 }
