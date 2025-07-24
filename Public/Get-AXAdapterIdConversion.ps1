@@ -10,11 +10,27 @@ Function Get-AXAdapterIdConversion{
     This is the Id type of the value you know.
     .PARAMETER ToIdType
     This is the Id type of the value you don't know, and want to convert your known Id into.
+    .PARAMETER AxoniusURL
+        The URL of the Axonius instance. Default is taken from the AX_URL environment variable.
+    .PARAMETER AXKey
+        The API key for Axonius. Default is taken from the AX_KEY environment variable.
+    .PARAMETER AXSecret
+        The API secret for Axonius. Default is taken from the AX_SECRET environment variable.
     .EXAMPLE
     Get-AXAdapterIdConversion -FromIdValue "d619273b-f124-4b21-acf1-9156771a5f2e" -FromIdType "adapters_data.azure_ad_adapter.intune_id" -ToIdType "internal_axon_id"
     This example converts the Intune device id "d619273b-f124-4b21-acf1-9156771a5f2e" to the internal axonius id.
     #>
     param(
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AxoniusURL = $env:AX_URL,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXKey = $env:AX_KEY,
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AXSecret = $env:AX_SECRET,
+        [Parameter(Mandatory, Position = 0)]
         [string]$FromIdValue,
         [ValidateSet(   "internal_axon_id",
                         "specific_data.data.hostname",
@@ -33,7 +49,8 @@ Function Get-AXAdapterIdConversion{
                         "adapters_data.epo_adapter.epo_id",
                         "adapters_data.hp_device_manager_adapter.id",
                         "adapters_data.sccm_adapter.id")]
-        [string]$FromIdType,     
+        [string]$FromIdType,
+        [Parameter(Mandatory, Position = 1)]
         [ValidateSet(   "internal_axon_id",
                         "specific_data.data.hostname",
                         "specific_data.data.owner",
@@ -56,8 +73,15 @@ Function Get-AXAdapterIdConversion{
 
     $filter = '("{0}" == "{1}")' -f $FromIdType, $FromIdValue
     $fields = @($FromIdType, $ToIdType)
-    $out = Get-AxDevice -Filter $filter -Fields $fields | Select-Object -ExpandProperty $ToIdType
-    $out
+    $outParams = @{
+        AxoniusURL = $AxoniusURL
+        AXKey = $AXKey
+        AXSecret = $AXSecret
+        Filter = $filter
+        Fields = $fields
+    }
+    $out = Get-AxDevice @outParams | Select-Object -ExpandProperty $ToIdType
+    Write-Output $out
 
 
 
